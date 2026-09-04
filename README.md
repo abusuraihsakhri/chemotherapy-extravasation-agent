@@ -1,120 +1,53 @@
-# Chemotherapy Extravasation Agent
+# Chemotherapy Extravasation Clinical Decision Support Engine
 
-> **Domain:** Clinical Pharmacology & Precision Pharmacotherapy  
-> **Reference Guidelines & Standards:** `CPIC Guidelines & FDA Table of Pharmacogenomic Biomarkers`
-
-<div align="center">
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
-
-</div>
+> **Domain:** Medical Oncology, Infusion Nursing & Emergency Antidote Pharmacology  
+> **Clinical Guidelines & Standards:** ASCO/ONS Chemotherapy Extravasation Guidelines, ESMO-EONS Clinical Practice Guidelines, CTCAE v5.0, Mosteller BSA Formulation
 
 ---
 
-## 📖 What It Does
+## 📖 Clinical Overview
 
-**Chemotherapy Extravasation Agent** is an advanced analytical and computational platform implementing Vesicant Extravasation & Specific Antidote (Dexrazoxane) Protocol.
+The **Chemotherapy Extravasation Clinical Decision Support Engine** provides immediate point-of-care risk stratification, CTCAE v5.0 grading, thermal application guidance, and specific pharmacological antidote dosing (Dexrazoxane, Hyaluronidase, Sodium Thiosulfate, DMSO) upon accidental extravasation of antineoplastic agents.
 
----
+### Vesicant Classification & Antidote Protocols
 
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Core Algorithmic & Evaluation Engines
-
-- **`VesicantClass`** — dedicated module for vesicant class evaluation and state verification.
-- **`ThermalProtocol`** — dedicated module for thermal protocol evaluation and state verification.
-- **`AntidoteType`** — dedicated module for antidote type evaluation and state verification.
-- **`CatheterType`** — dedicated module for catheter type evaluation and state verification.
-- **`CTCAEGrade`** — dedicated module for c t c a e grade evaluation and state verification.
-- **`AntineoplasticDrugInfo`** — dedicated module for antineoplastic drug info evaluation and state verification.
-
----
-
-## 📐 Mathematical Formulation & Logic
-
-```text
-  Mosteller formula for Body Surface Area (BSA):
-  Cockcroft-Gault formula for Creatinine Clearance:
-  """Calculates specific clinical antidote dosing regimens."""
-  bsa = calculate_bsa_mosteller(patient_height_cm, patient_weight_kg)
-  antidote_plan = self.antidote_calc.calculate_dmso(25.0, time_elapsed_hours)
-```
+| Drug Class | Exemplar Agents | Thermal Management | Specific Pharmacological Antidote | Dosing Protocol |
+|:---|:---|:---|:---|:---|
+| **DNA-Binding Vesicants** | Doxorubicin, Daunorubicin, Epirubicin, Idarubicin | **Dry Cold Pack** (15-20 min q4h) | **Dexrazoxane (Totect / Savene)** | Day 1: $1000\,\text{mg/m}^2$ (max 2000 mg); Day 2: $1000\,\text{mg/m}^2$; Day 3: $500\,\text{mg/m}^2$ (reduce by 50% if $\text{CrCl} < 40\,\text{mL/min}$) |
+| **Non-DNA-Binding Vesicants** | Vincristine, Vinblastine, Vinorelbine | **Dry Warm Pack** (15-20 min q4h) | **Hyaluronidase** | 150–1500 units subcutaneous clockwise around extravasation site |
+| **Non-DNA-Binding Vesicants (Taxanes)** | Paclitaxel, Docetaxel | **Dry Cold Pack** | **Hyaluronidase** (or cold only) | 150–250 units clockwise around perimeter |
+| **Alkylating Agents** | Cisplatin ($\ge 0.5\,\text{mg/mL}$), Mechlorethamine | **Dry Cold Pack** | **Sodium Thiosulfate (1/6 M)** | Infiltrate 2 mL for each 1 mL extravasated |
+| **Irritants with Vesicant Potential**| Oxaliplatin, Carboplatin, Mitomycin | **Dry Cold Pack** (Warm for Oxaliplatin) | Drug-specific or symptomatic | Supportive cold/warm compress, site elevation |
 
 ---
 
 ## 💻 CLI Quickstart & Usage
 
-### 1. Guided Interactive Mode
+### 1. Comprehensive Extravasation Assessment
 ```bash
-python cli.py
+python cli.py assess --drug doxorubicin --catheter peripheral_forearm --volume 8.0 --elapsed 1.2 --height 172 --weight 68.5 --age 58 --creatinine 1.0 --pain 5
 ```
 
-### 2. Direct Parameterized Evaluation
+### 2. Isolated Antidote Calculation
 ```bash
-python cli.py --drug <value> --catheter <value> --volume <value> --elapsed <value>
+python cli.py antidote --drug doxorubicin --height 172 --weight 68.5 --creatinine 1.0 --elapsed 1.5
 ```
 
-### Parameter Reference
-- `--drug`: Specifies input measurement or parameter value.
-- `--catheter`: Specifies input measurement or parameter value.
-- `--volume`: Specifies input measurement or parameter value.
-- `--elapsed`: Specifies input measurement or parameter value.
-- `--weight`: Specifies input measurement or parameter value.
-- `--height`: Specifies input measurement or parameter value.
-- `--age`: Specifies input measurement or parameter value.
-- `--creatinine`: Specifies input measurement or parameter value.
-- `--type`: Specifies input measurement or parameter value.
-- `--bsa`: Specifies input measurement or parameter value.
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `case_id` | Parameter / observation metric | Required |
-| `patient_id` | Parameter / observation metric | Required |
-| `drug` | Parameter / observation metric | Required |
-| `catheter` | Parameter / observation metric | Required |
-| `volume_ml` | Parameter / observation metric | Required |
-| `elapsed_hours` | Parameter / observation metric | Required |
-| `height_cm` | Parameter / observation metric | Required |
-| `weight_kg` | Parameter / observation metric | Required |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
-
+### 3. Interactive Clinical Wizard
 ```bash
-pytest -v
+python cli.py interactive
 ```
 
-Execute high-throughput batch simulation benchmarks:
-
+### 4. Batch Process Extravasation Incident CSV Log
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python cli.py batch -i sample.csv -o out_results.csv
 ```
 
 ---
 
-## 🐳 Container Deployment
+## 🧪 Verification & Testing
 
+Execute comprehensive unit tests via pytest:
 ```bash
-docker build -t chemotherapy-extravasation-agent .
-docker run -p 8000:8000 chemotherapy-extravasation-agent
+python -m pytest -p no:zarr
 ```
