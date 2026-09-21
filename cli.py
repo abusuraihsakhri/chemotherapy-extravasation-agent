@@ -330,6 +330,7 @@ def main(argv=None):
 
     # Assess
     p_assess = subparsers.add_parser("assess", help="Comprehensive extravasation event assessment & protocol generation")
+    p_assess.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_assess.add_argument("--drug", required=True, help="Antineoplastic agent generic name")
     p_assess.add_argument("--catheter", default="peripheral_forearm", help="Catheter / access device type")
     p_assess.add_argument("--volume", type=float, default=5.0, help="Estimated volume extravasated in mL")
@@ -353,6 +354,7 @@ def main(argv=None):
 
     # Antidote
     p_antidote = subparsers.add_parser("antidote", help="Calculate specific antidote dosing regimen")
+    p_antidote.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_antidote.add_argument("--type", required=True, choices=["dexrazoxane", "hyaluronidase", "sodium_thiosulfate", "dmso"], help="Antidote type")
     p_antidote.add_argument("--bsa", type=float, help="Body surface area in m² (for dexrazoxane)")
     p_antidote.add_argument("--crcl", type=float, help="Creatinine clearance in mL/min")
@@ -367,6 +369,7 @@ def main(argv=None):
 
     # Risk
     p_risk = subparsers.add_parser("risk", help="Legacy unvalidated pre-infusion risk heuristic")
+    p_risk.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_risk.add_argument("--drug", required=True, help="Chemotherapy drug name")
     p_risk.add_argument("--catheter", default="peripheral_forearm", help="Catheter type")
     p_risk.add_argument("--multiple-attempts", action="store_true", help="Multiple venipuncture attempts made")
@@ -380,6 +383,7 @@ def main(argv=None):
 
     # Stage
     p_stage = subparsers.add_parser("stage", help="Grade CTCAE v5.0 severity")
+    p_stage.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_stage.add_argument("--pain", type=int, default=3, help="Pain score (0-10)")
     p_stage.add_argument("--erythema", action=argparse.BooleanOptionalAction, default=True, help="Erythema present (use --no-erythema when absent)")
     p_stage.add_argument("--edema", action=argparse.BooleanOptionalAction, default=True, help="Edema present (use --no-edema when absent)")
