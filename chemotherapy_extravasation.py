@@ -144,7 +144,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["mutamycin", "mitomycin-c"],
         vesicant_class=VesicantClass.DNA_BINDING_VESICANT,
         category="Antitumor Antibiotic",
-        primary_antidote=AntidoteType.SODIUM_THIOSULFATE,
+        primary_antidote=AntidoteType.DMSO,
         secondary_antidote=AntidoteType.DMSO,
         thermal_protocol=ThermalProtocol.DRY_COLD,
         thermal_rationale="Cold compress minimizes tissue perfusion and localizes alkylating metabolite exposure.",
@@ -156,7 +156,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["cosmegen", "actinomycin-d"],
         vesicant_class=VesicantClass.DNA_BINDING_VESICANT,
         category="Antitumor Antibiotic",
-        primary_antidote=AntidoteType.SODIUM_THIOSULFATE,
+        primary_antidote=AntidoteType.DMSO,
         secondary_antidote=AntidoteType.NONE,
         thermal_protocol=ThermalProtocol.DRY_COLD,
         thermal_rationale="Dry cold retards local blood flow and reduces cellular extravasation injury.",
@@ -222,8 +222,8 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         category="Taxane",
         primary_antidote=AntidoteType.HYALURONIDASE,
         secondary_antidote=AntidoteType.NONE,
-        thermal_protocol=ThermalProtocol.DRY_COLD,
-        thermal_rationale="Cold compress reduces local inflammation, Cremophor EL carrier irritation, and edema.",
+        thermal_protocol=ThermalProtocol.DRY_WARM,
+        thermal_rationale="When hyaluronidase is used, current ONS/ASCO guidance pairs it with a warm compress; if hyaluronidase is not used, use a cold compress.",
         cellular_mechanism="Microtubule stabilization preventing depolymerization.",
         antidote_window_hours=1.0,
     ),
@@ -234,8 +234,8 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         category="Taxane",
         primary_antidote=AntidoteType.HYALURONIDASE,
         secondary_antidote=AntidoteType.NONE,
-        thermal_protocol=ThermalProtocol.DRY_COLD,
-        thermal_rationale="Cold compresses restrict localized inflammatory mediator release and tissue damage.",
+        thermal_protocol=ThermalProtocol.DRY_WARM,
+        thermal_rationale="When hyaluronidase is used, current ONS/ASCO guidance pairs it with a warm compress; if hyaluronidase is not used, use a cold compress.",
         cellular_mechanism="Microtubule hyperstabilization and mitotic arrest.",
         antidote_window_hours=1.0,
     ),
@@ -271,7 +271,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["paraplatin"],
         vesicant_class=VesicantClass.IRRITANT,
         category="Platinum Coordination Complex",
-        primary_antidote=AntidoteType.SODIUM_THIOSULFATE,
+        primary_antidote=AntidoteType.NONE,
         secondary_antidote=AntidoteType.NONE,
         thermal_protocol=ThermalProtocol.DRY_COLD,
         thermal_rationale="Cold compress limits pain, swelling, and chemical phlebitis.",
@@ -283,7 +283,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["eloxatin"],
         vesicant_class=VesicantClass.IRRITANT_WITH_VESICANT_POTENTIAL,
         category="Platinum Coordination Complex",
-        primary_antidote=AntidoteType.SODIUM_THIOSULFATE,
+        primary_antidote=AntidoteType.NONE,
         secondary_antidote=AntidoteType.NONE,
         thermal_protocol=ThermalProtocol.DRY_WARM,
         thermal_rationale="WARM or room temp compress advised because cold exposure can trigger acute neurosensory dysesthesia / pharyngolaryngeal spasm.",
@@ -295,7 +295,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["dtic-dome"],
         vesicant_class=VesicantClass.IRRITANT_WITH_VESICANT_POTENTIAL,
         category="Alkylating Agent",
-        primary_antidote=AntidoteType.SODIUM_THIOSULFATE,
+        primary_antidote=AntidoteType.NONE,
         secondary_antidote=AntidoteType.NONE,
         thermal_protocol=ThermalProtocol.DRY_COLD,
         thermal_rationale="Cold compress minimizes tissue exposure to photoreactive alkylating degradation products.",
@@ -307,7 +307,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["bicnu"],
         vesicant_class=VesicantClass.IRRITANT_WITH_VESICANT_POTENTIAL,
         category="Nitrosourea",
-        primary_antidote=AntidoteType.SODIUM_THIOSULFATE,
+        primary_antidote=AntidoteType.NONE,
         secondary_antidote=AntidoteType.NONE,
         thermal_protocol=ThermalProtocol.DRY_COLD,
         thermal_rationale="Cold compresses restrict nitrosourea lipophilic tissue penetration.",
@@ -331,7 +331,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
         brand_names=["vepesid", "toposar"],
         vesicant_class=VesicantClass.IRRITANT_WITH_VESICANT_POTENTIAL,
         category="Topoisomerase II Inhibitor",
-        primary_antidote=AntidoteType.HYALURONIDASE,
+        primary_antidote=AntidoteType.NONE,
         secondary_antidote=AntidoteType.NONE,
         thermal_protocol=ThermalProtocol.DRY_WARM,
         thermal_rationale="Dry warm compresses promote absorption and dispersion of concentrated solution.",
@@ -470,12 +470,12 @@ class AntidoteCalculator:
         - Day 1: 1000 mg/m² (max 2000 mg) within 6 hours.
         - Day 2: 1000 mg/m² (max 2000 mg) at 24 hours ± 3h.
         - Day 3: 500 mg/m² (max 1000 mg) at 48 hours ± 3h.
-        Renal adjustment: CrCl < 50 mL/min -> Reduce dose by 50%.
+        Renal adjustment: CrCl < 40 mL/min -> Reduce dose by 50%.
         """
         if bsa_m2 <= 0:
             raise ValueError("BSA must be positive.")
 
-        renal_adj = crcl_ml_min is not None and crcl_ml_min < 50.0
+        renal_adj = crcl_ml_min is not None and crcl_ml_min < 40.0
         dose_factor = 0.5 if renal_adj else 1.0
 
         d1_rate = 1000.0 * dose_factor
@@ -527,7 +527,7 @@ class AntidoteCalculator:
 
         warnings = []
         if renal_adj:
-            warnings.append(f"Renal impairment detected (CrCl {crcl_ml_min:.1f} mL/min < 50 mL/min): Dexrazoxane doses reduced by 50%.")
+            warnings.append(f"Renal impairment detected (CrCl {crcl_ml_min:.1f} mL/min < 40 mL/min): Dexrazoxane doses reduced by 50%.")
         if time_elapsed_hours > 6.0:
             warnings.append(f"CRITICAL WARNING: Time elapsed ({time_elapsed_hours:.1f}h) exceeds the validated 6-hour therapeutic window. Efficacy may be significantly degraded.")
 
@@ -550,57 +550,50 @@ class AntidoteCalculator:
         time_elapsed_hours: float = 0.0,
     ) -> AntidotePlan:
         """
-        Hyaluronidase subcutaneous radial injection protocol for Vinca alkaloids, Taxanes, and Etoposide.
-        Dosing: 150 to 300 USP units (1-2 mL of 150 units/mL solution).
-        Technique: Clock-face subcutaneous infiltration around circumference.
+        Hyaluronidase protocol aligned with the 2025 ONS/ASCO extravasation guideline.
+        The guideline example is 150 units/1 mL divided into five 0.2 mL
+        subcutaneous injections around the perimeter. Dose is not scaled from the
+        estimated extravasated volume; large injuries require pharmacist/specialist review.
         """
         if estimated_volume_ml <= 0:
             raise ValueError("Extravasation volume must be positive.")
 
-        if estimated_volume_ml <= 2.0:
-            total_units = 150
-            num_injections = 4
-        elif estimated_volume_ml <= 10.0:
-            total_units = 300
-            num_injections = 6
-        else:
-            # For extensive extravasation (>10 mL)
-            total_units = min(int(math.ceil(estimated_volume_ml / 5.0) * 150), 1500)
-            num_injections = 8
-
-        units_per_injection = round(total_units / num_injections, 1)
-        ml_per_injection = round((total_units / 150.0) / num_injections, 2)
+        total_units = 150
+        num_injections = 5
+        units_per_injection = 30.0
+        ml_per_injection = 0.2
 
         schedule = [
             {
-                "step": "Subcutaneous Infiltration",
+                "step": "Subcutaneous perimeter infiltration",
                 "total_units": total_units,
                 "num_sites": num_injections,
                 "units_per_site": units_per_injection,
                 "volume_per_site_ml": ml_per_injection,
-                "timing": "Immediately within 1 hour of extravasation",
+                "timing": "As soon as possible; guideline example specifies within 3-4 hours",
             }
         ]
 
         instructions = [
-            "Administer within 1 hour of extravasation (most effective if given within 30 minutes).",
-            f"Use a 25-gauge to 27-gauge needle; inject {units_per_injection} units ({ml_per_injection} mL) subcutaneously at {num_injections} sites around the leading edge of the extravasation in a clockwise ring.",
-            "Change the needle between each injection site to avoid tracking extravasated drug into undamaged tissue.",
-            "Also inject 150 units through the retained catheter prior to catheter removal if possible.",
-            "Apply DRY WARM compresses for 20 minutes QID for 24-48 hours. DO NOT APPLY COLD.",
+            "Verify the product concentration before administration; formulations vary.",
+            "Example regimen: 150 units in 1 mL divided into five 0.2 mL subcutaneous injections around the perimeter using a 25-gauge needle.",
+            "Change the needle with each injection.",
+            "Large extravasations may require additional injections; consult oncology pharmacy/specialty care rather than scaling dose from estimated volume.",
         ]
 
         warnings = []
-        if time_elapsed_hours > 1.0:
-            warnings.append(f"WARNING: Time elapsed ({time_elapsed_hours:.1f}h) exceeds optimal 1-hour window for enzymatic spreading.")
+        if time_elapsed_hours > 4.0:
+            warnings.append(
+                f"Time elapsed ({time_elapsed_hours:.1f} h) is beyond the 3-4 hour administration window described in the ONS/ASCO guideline example."
+            )
 
         return AntidotePlan(
-            antidote_name="Hyaluronidase (Amphadase / Vitrase / Hylenex)",
+            antidote_name="Hyaluronidase",
             is_indicated=True,
-            urgency_window_hours=1.0,
+            urgency_window_hours=4.0,
             time_elapsed_hours=time_elapsed_hours,
-            is_within_window=time_elapsed_hours <= 1.0,
-            dose_summary=f"{total_units} USP Units SC divided into {num_injections} clockwise radial subcutaneous injections ({units_per_injection} units/site)",
+            is_within_window=time_elapsed_hours <= 4.0,
+            dose_summary="150 units/1 mL SC divided into five 0.2 mL perimeter injections (verify formulation)",
             schedule=schedule,
             administration_instructions=instructions,
             contraindications_and_warnings=warnings,
@@ -612,47 +605,46 @@ class AntidoteCalculator:
         time_elapsed_hours: float = 0.0,
     ) -> AntidotePlan:
         """
-        Sodium Thiosulfate (STS) neutralization protocol for Cisplatin, Mechlorethamine, Mitomycin-C.
-        Dosing: 2 mL of 1/6 M (approx 4.17%) to 10% solution per 1 mL of estimated extravasate (max 10 mL total).
+        Sodium thiosulfate regimen from the 2025 ONS/ASCO extravasation guideline.
+
+        The guideline recommends a prepared 1/6 M solution, up to 1 mL total,
+        administered as 0.1 mL subcutaneous injections around the affected area.
+        Indication is agent-specific and must be established before calling this method.
         """
         if estimated_volume_ml <= 0:
             raise ValueError("Extravasation volume must be positive.")
 
-        sts_volume_ml = min(round(2.0 * estimated_volume_ml, 1), 10.0)
-        num_injections = 5
-        ml_per_site = round(sts_volume_ml / num_injections, 2)
+        total_volume_ml = 1.0
+        per_injection_ml = 0.1
+        num_injections = 10
 
-        schedule = [
-            {
-                "step": "Subcutaneous Neutralization Infiltration",
-                "total_volume_ml": sts_volume_ml,
-                "solution_concentration": "1/6 M (approx 4.17%) or 10% solution",
-                "num_sites": num_injections,
-                "volume_per_site_ml": ml_per_site,
-            }
-        ]
+        schedule = [{
+            "step": "Subcutaneous perimeter infiltration",
+            "total_volume_ml": total_volume_ml,
+            "solution_concentration": "1/6 M",
+            "num_sites": num_injections,
+            "volume_per_site_ml": per_injection_ml,
+        }]
 
         instructions = [
-            "Preparation: Dilute 4 mL of 25% Sodium Thiosulfate with 6 mL of Sterile Water for Injection to yield 10 mL of 10% solution (or use commercially prepared 1/6 M solution).",
-            f"Inject {ml_per_site} mL subcutaneously at {num_injections} sites surrounding the extravasation site using a 25-27G needle.",
-            "If catheter is still in place, instill 1-2 mL of STS through the catheter hub before removal.",
-            "Apply dry cold compresses for 20 minutes QID for 24-48 hours.",
+            "Prepare a 1/6 M solution: from 25% sodium thiosulfate, mix 1.6 mL with 8.4 mL sterile water; from 10% solution, mix 4 mL with 6 mL sterile water.",
+            "Administer up to 1 mL total as 0.1 mL subcutaneous injections in and around the extravasation perimeter.",
+            "Change the needle with each injection.",
+            "After administration, apply an ice/cold pack to the affected area for 6-12 hours according to local protocol.",
         ]
 
-        warnings = []
-        if time_elapsed_hours > 2.0:
-            warnings.append(f"WARNING: Time elapsed ({time_elapsed_hours:.1f}h) exceeds optimal 2-hour neutralization window.")
-
         return AntidotePlan(
-            antidote_name="Sodium Thiosulfate (1/6 M or 10%)",
+            antidote_name="Sodium Thiosulfate (1/6 M)",
             is_indicated=True,
-            urgency_window_hours=2.0,
+            urgency_window_hours=0.0,
             time_elapsed_hours=time_elapsed_hours,
-            is_within_window=time_elapsed_hours <= 2.0,
-            dose_summary=f"{sts_volume_ml} mL of 10% solution SC divided across {num_injections} subcutaneous sites ({ml_per_site} mL/site)",
+            is_within_window=True,
+            dose_summary="Up to 1 mL of prepared 1/6 M solution SC as 0.1 mL perimeter injections",
             schedule=schedule,
             administration_instructions=instructions,
-            contraindications_and_warnings=warnings,
+            contraindications_and_warnings=[
+                "Use only for a guideline-supported indication (for example >20 mL high-concentration cisplatin >0.5 mg/mL, or bendamustine) and verify the institutional protocol."
+            ],
         )
 
     @staticmethod
@@ -661,38 +653,36 @@ class AntidoteCalculator:
         time_elapsed_hours: float = 0.0,
     ) -> AntidotePlan:
         """
-        Dimethyl Sulfoxide (DMSO 99% topical) free-radical scavenger protocol.
-        Used for Anthracyclines (when Dexrazoxane is unavailable) or Mitomycin-C.
+        DMSO topical protocol aligned with the 2025 ONS/ASCO extravasation guideline.
         """
-        drops_required = max(int(round((surface_area_cm2 / 10.0) * 4.0)), 4)
+        if surface_area_cm2 <= 0:
+            raise ValueError("Extravasation surface area must be positive.")
 
-        schedule = [
-            {
-                "frequency": "Every 8 hours for 7 to 14 consecutive days",
-                "dosage_drops": drops_required,
-                "area_coverage_cm2": surface_area_cm2,
-            }
-        ]
+        schedule = [{
+            "frequency": "Every 8 hours for 7 days",
+            "area_coverage_cm2": round(surface_area_cm2 * 2.0, 1),
+            "concentration": "50%-99% topical preparation; verify locally available formulation",
+        }]
 
         instructions = [
-            f"Apply {drops_required} drops of 99% Dimethyl Sulfoxide (DMSO) topically to twice the affected surface area ({surface_area_cm2 * 2:.0f} cm²).",
-            "Allow the solution to air dry completely without occlusive dressings or bandages.",
-            "Repeat application every 8 hours for a minimum of 7 days, extending to 14 days if symptoms persist.",
-            "Avoid combining topical DMSO with Dexrazoxane as DMSO may decrease the systemic efficacy of Dexrazoxane.",
+            f"Apply DMSO to dry skin over an area approximately twice the measured extravasation area ({surface_area_cm2 * 2:.1f} cm²).",
+            "Allow to air dry; do not cover with a dressing.",
+            "Repeat every 8 hours for 7 days.",
+            "Do not combine topical DMSO with dexrazoxane.",
         ]
 
         warnings = [
-            "Patients will experience a characteristic garlic-like breath odor and taste during topical DMSO therapy.",
-            "Do NOT apply occlusive dressings over DMSO-treated areas.",
+            "Implement as early as possible; the ONS/ASCO table describes initiation within 10-25 minutes.",
+            "Consult oncology pharmacy for the locally available DMSO concentration and handling requirements.",
         ]
 
         return AntidotePlan(
-            antidote_name="Dimethyl Sulfoxide (DMSO 99% Topical)",
+            antidote_name="Dimethyl Sulfoxide (DMSO topical)",
             is_indicated=True,
-            urgency_window_hours=2.0,
+            urgency_window_hours=0.5,
             time_elapsed_hours=time_elapsed_hours,
-            is_within_window=time_elapsed_hours <= 24.0,
-            dose_summary=f"{drops_required} drops of 99% DMSO applied topically TID for 7-14 days",
+            is_within_window=time_elapsed_hours <= 0.5,
+            dose_summary="DMSO 50%-99% topically to twice the affected area every 8 hours for 7 days",
             schedule=schedule,
             administration_instructions=instructions,
             contraindications_and_warnings=warnings,
@@ -746,7 +736,9 @@ def assess_extravasation_risk(
         else:
             drug_pts = 2.0
     else:
-        drug_pts = 12.0  # Unknown drug default
+        raise ValueError(
+            f"Unknown antineoplastic agent '{drug_name}'. No risk score is generated for unclassified drugs."
+        )
 
     # 2. Catheter & Site Risk (0 - 25 points)
     catheter_map = {
@@ -845,24 +837,31 @@ def grade_ctcae_severity(
     loss_of_extremity_function: bool = False,
 ) -> Dict[str, Any]:
     """
-    CTCAE v5.0 Extravasation Severity Grading & Surgical Consult Classifier.
+    Map findings to NCI CTCAE v5.0 "Infusion site extravasation" grades.
+
+    CTCAE v5.0 does not use numeric pain thresholds or blister diameter cutoffs
+    for this term. Parameters retained for API compatibility are treated as
+    supporting clinical findings rather than independent grading rules.
     """
+    if not 0 <= pain_score_0_to_10 <= 10:
+        raise ValueError("Pain score must be between 0 and 10.")
+
     if compartment_syndrome_signs or loss_of_extremity_function:
         grade = CTCAEGrade.GRADE_4
-        desc = "Grade 4 (Life-threatening / Disabling): Urgent operative intervention indicated; compartment syndrome or neurovascular compromise."
-        surgical_consult = "EMERGENT: Immediate orthopedic / plastic surgery evaluation for emergency fasciotomy / operative exploration."
-    elif ulceration_or_necrosis_present or tissue_sloughing_or_eschar or blister_size_cm >= 1.0 or pain_score_0_to_10 >= 7:
+        desc = "Grade 4: Life-threatening consequences; urgent intervention indicated."
+        surgical_consult = "EMERGENT: Escalate immediately for urgent specialist/surgical assessment."
+    elif ulceration_or_necrosis_present or tissue_sloughing_or_eschar:
         grade = CTCAEGrade.GRADE_3
-        desc = "Grade 3 (Severe): Severe pain, ulceration, gross tissue necrosis, or extensive bullae; surgical debridement indicated."
-        surgical_consult = "URGENT: Plastic surgery or wound care consultation within 24 hours for evaluation of debridement."
-    elif blistering_present or pain_score_0_to_10 >= 4 or (erythema_present and edema_present):
+        desc = "Grade 3: Ulceration or necrosis, severe tissue damage, or operative intervention indicated."
+        surgical_consult = "URGENT: Specialist/surgical assessment is indicated."
+    elif erythema_present and (edema_present or pain_score_0_to_10 > 0 or blistering_present):
         grade = CTCAEGrade.GRADE_2
-        desc = "Grade 2 (Moderate): Moderate erythema and edema with pain 4-6; localized small blisters (< 1 cm); phlebitis."
-        surgical_consult = "ADVISORY: Wound care follow-up; request surgical consult if no clinical improvement within 48-72 hours."
+        desc = "Grade 2: Erythema with associated symptoms such as edema, pain, induration, or phlebitis."
+        surgical_consult = "ESCALATE AS APPROPRIATE: Central-line extravasation and other high-risk cases warrant early specialty referral."
     else:
         grade = CTCAEGrade.GRADE_1
-        desc = "Grade 1 (Mild): Mild erythema and localized edema with minimal discomfort (pain 1-3); no skin breakdown."
-        surgical_consult = "ROUTINE: Outpatient oncology nursing monitoring; surgery consult not immediately required."
+        desc = "Grade 1: Painless edema."
+        surgical_consult = "ROUTINE: Continue protocol-directed observation and follow-up."
 
     return {
         "ctcae_grade": grade.value,
@@ -909,6 +908,8 @@ class ChemotherapyExtravasationEngine:
         catheter_type: str,
         estimated_volume_ml: float,
         time_elapsed_hours: float,
+        drug_concentration_mg_ml: Optional[float] = None,
+        extravasation_surface_area_cm2: Optional[float] = None,
         patient_height_cm: Optional[float] = None,
         patient_weight_kg: Optional[float] = None,
         patient_age_years: Optional[int] = None,
@@ -924,17 +925,14 @@ class ChemotherapyExtravasationEngine:
         drug_info = DRUG_REGISTRY.get(drug_key)
 
         if not drug_info:
-            vesicant_class = VesicantClass.IRRITANT.value
-            thermal_mode = ThermalProtocol.DRY_COLD.value
-            thermal_rat = "Standard default cold application for unclassified cytotoxic agent."
-            primary_antidote = AntidoteType.NONE
-            antidote_window = 1.0
-        else:
-            vesicant_class = drug_info.vesicant_class.value
-            thermal_mode = drug_info.thermal_protocol.value
-            thermal_rat = drug_info.thermal_rationale
-            primary_antidote = drug_info.primary_antidote
-            antidote_window = drug_info.antidote_window_hours
+            raise ValueError(
+                f"Unknown antineoplastic agent '{drug_name}'. Management is not inferred for unclassified drugs; consult the institutional extravasation protocol."
+            )
+
+        vesicant_class = drug_info.vesicant_class.value
+        thermal_mode = drug_info.thermal_protocol.value
+        thermal_rat = drug_info.thermal_rationale
+        primary_antidote = drug_info.primary_antidote
 
         # 1. CTCAE Severity
         ctcae = grade_ctcae_severity(
@@ -946,23 +944,77 @@ class ChemotherapyExtravasationEngine:
 
         # 2. Antidote Calculation
         antidote_plan = None
-        if primary_antidote == AntidoteType.DEXRAZOXANE:
-            bsa = 1.73  # Standard adult default
-            if patient_height_cm and patient_weight_kg:
+        if drug_key == "cisplatin":
+            concentration_ok = (
+                drug_concentration_mg_ml is not None
+                and drug_concentration_mg_ml > 0.5
+            )
+            volume_ok = estimated_volume_ml > 20.0
+            if concentration_ok and volume_ok:
+                antidote_plan = self.antidote_calc.calculate_sodium_thiosulfate(
+                    estimated_volume_ml, time_elapsed_hours
+                )
+            else:
+                missing = "concentration is required" if drug_concentration_mg_ml is None else "thresholds are not met"
+                antidote_plan = AntidotePlan(
+                    antidote_name="Sodium Thiosulfate (conditional indication)",
+                    is_indicated=False,
+                    urgency_window_hours=0.0,
+                    time_elapsed_hours=time_elapsed_hours,
+                    is_within_window=True,
+                    dose_summary="ONS/ASCO recommends sodium thiosulfate for >20 mL of cisplatin at >0.5 mg/mL; " + missing + ".",
+                    schedule=[],
+                    administration_instructions=["Verify cisplatin concentration, estimated volume, and institutional protocol before use."],
+                    contraindications_and_warnings=[],
+                )
+        elif primary_antidote == AntidoteType.DEXRAZOXANE:
+            if patient_height_cm is None or patient_weight_kg is None:
+                antidote_plan = AntidotePlan(
+                    antidote_name="Dexrazoxane",
+                    is_indicated=True,
+                    urgency_window_hours=6.0,
+                    time_elapsed_hours=time_elapsed_hours,
+                    is_within_window=time_elapsed_hours <= 6.0,
+                    dose_summary="Dexrazoxane is indicated, but patient height and weight (or a verified BSA) are required before a dose can be calculated.",
+                    schedule=[],
+                    administration_instructions=["Obtain/verify BSA and consult the product label or institutional protocol before preparation."],
+                    contraindications_and_warnings=[],
+                )
+            else:
                 bsa = calculate_bsa_mosteller(patient_height_cm, patient_weight_kg)
-            crcl = None
-            if patient_age_years and patient_weight_kg and serum_creatinine_mg_dl:
-                crcl = calculate_crcl_cockcroft_gault(patient_age_years, patient_weight_kg, serum_creatinine_mg_dl, is_female)
-            antidote_plan = self.antidote_calc.calculate_dexrazoxane(bsa, crcl, time_elapsed_hours)
-
+                crcl = None
+                if patient_age_years is not None and serum_creatinine_mg_dl is not None:
+                    crcl = calculate_crcl_cockcroft_gault(
+                        patient_age_years, patient_weight_kg, serum_creatinine_mg_dl, is_female
+                    )
+                antidote_plan = self.antidote_calc.calculate_dexrazoxane(
+                    bsa, crcl, time_elapsed_hours
+                )
         elif primary_antidote == AntidoteType.HYALURONIDASE:
-            antidote_plan = self.antidote_calc.calculate_hyaluronidase(estimated_volume_ml, time_elapsed_hours)
-
+            antidote_plan = self.antidote_calc.calculate_hyaluronidase(
+                estimated_volume_ml, time_elapsed_hours
+            )
         elif primary_antidote == AntidoteType.SODIUM_THIOSULFATE:
-            antidote_plan = self.antidote_calc.calculate_sodium_thiosulfate(estimated_volume_ml, time_elapsed_hours)
-
+            antidote_plan = self.antidote_calc.calculate_sodium_thiosulfate(
+                estimated_volume_ml, time_elapsed_hours
+            )
         elif primary_antidote == AntidoteType.DMSO:
-            antidote_plan = self.antidote_calc.calculate_dmso(25.0, time_elapsed_hours)
+            if extravasation_surface_area_cm2 is None:
+                antidote_plan = AntidotePlan(
+                    antidote_name="Dimethyl Sulfoxide (DMSO topical)",
+                    is_indicated=True,
+                    urgency_window_hours=0.5,
+                    time_elapsed_hours=time_elapsed_hours,
+                    is_within_window=time_elapsed_hours <= 0.5,
+                    dose_summary="DMSO is indicated; measure the extravasation surface area before calculating the application area.",
+                    schedule=[],
+                    administration_instructions=["Apply to dry skin over approximately twice the measured extravasation area; verify local formulation and protocol."],
+                    contraindications_and_warnings=["Do not combine DMSO with dexrazoxane."],
+                )
+            else:
+                antidote_plan = self.antidote_calc.calculate_dmso(
+                    extravasation_surface_area_cm2, time_elapsed_hours
+                )
 
         # 3. Thermal Protocol Instructions
         if thermal_mode == ThermalProtocol.DRY_COLD.value:
@@ -1008,14 +1060,6 @@ class ChemotherapyExtravasationEngine:
                 "details": "Attach a sterile 3 mL or 5 mL syringe to the catheter hub and gently aspirate 3 to 5 mL of blood and extravasated fluid.",
             },
         ]
-
-        if primary_antidote in (AntidoteType.SODIUM_THIOSULFATE, AntidoteType.HYALURONIDASE):
-            actions.append({
-                "step_number": 4,
-                "priority": "HIGH",
-                "action": "INSTILL INITIAL ANTIDOTE THROUGH CATHETER (IF APPLICABLE)",
-                "details": f"Instill portion of {primary_antidote.value.upper()} through the catheter lumen before removal.",
-            })
 
         actions.extend([
             {
