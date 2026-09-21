@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browser-based reference tool for antineoplastic extravasation assessment and antidote calculations.">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval' blob:; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>Chemotherapy Extravasation Reference Tool</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#assessment-form">Skip to assessment</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Clinical reference</p>
+        <h1>Chemotherapy Extravasation</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="runtime-status" class="status-chip" role="status" aria-live="polite">Loading Python…</span>
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="Switch color theme">Theme</button>
+      </div>
+    </header>
+
+    <aside class="safety-note" aria-label="Clinical safety notice">
+      <strong>Reference use only.</strong>
+      Verify the agent, concentration, institutional extravasation protocol, product label, and pharmacy preparation before treatment. This tool does not replace urgent clinical assessment.
+    </aside>
+
+    <main class="workspace">
+      <section class="panel input-panel" aria-labelledby="input-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Event</p>
+            <h2 id="input-title">Assessment inputs</h2>
+          </div>
+          <button id="reset-button" class="text-button" type="button">Reset</button>
+        </div>
+
+        <form id="assessment-form" novalidate>
+          <div class="form-grid">
+            <label class="field span-2">
+              <span>Antineoplastic agent</span>
+              <select id="drug" name="drug" required disabled>
+                <option value="">Loading registry…</option>
+              </select>
+            </label>
+
+            <label class="field span-2">
+              <span>Vascular access</span>
+              <select id="catheter" name="catheter" required>
+                <option value="peripheral_forearm">Peripheral — forearm</option>
+                <option value="peripheral_hand_wrist">Peripheral — hand/wrist</option>
+                <option value="peripheral_antecubital">Peripheral — antecubital</option>
+                <option value="midline">Midline</option>
+                <option value="picc">PICC</option>
+                <option value="tunneled_cvc">Tunneled CVC</option>
+                <option value="implanted_port">Implanted port</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Estimated volume <small>mL</small></span>
+              <input id="volume" name="volume" type="number" min="0.01" step="0.1" value="5" required inputmode="decimal">
+            </label>
+
+            <label class="field">
+              <span>Elapsed time <small>hours</small></span>
+              <input id="elapsed" name="elapsed" type="number" min="0" step="0.1" value="0.5" required inputmode="decimal">
+            </label>
+
+            <label class="field">
+              <span>Pain score <small>0–10</small></span>
+              <input id="pain" name="pain" type="number" min="0" max="10" step="1" value="4" required inputmode="numeric">
+            </label>
+
+            <fieldset class="symptoms span-2">
+              <legend>Local findings</legend>
+              <label><input id="erythema" type="checkbox" checked> Erythema</label>
+              <label><input id="edema" type="checkbox" checked> Edema</label>
+              <label><input id="blistering" type="checkbox"> Blistering</label>
+              <label><input id="ulceration" type="checkbox"> Ulceration / necrosis</label>
+              <label><input id="sloughing" type="checkbox"> Sloughing / eschar</label>
+              <label><input id="compartment" type="checkbox"> Compartment syndrome signs</label>
+              <label><input id="loss-function" type="checkbox"> Loss of extremity function</label>
+            </fieldset>
+          </div>
+
+          <details class="advanced">
+            <summary>Agent and patient measurements</summary>
+            <p>Enter only measured values. Blank fields are not replaced with assumed patient measurements.</p>
+            <div class="form-grid compact-grid">
+              <label class="field">
+                <span>Drug concentration <small>mg/mL</small></span>
+                <input id="concentration" type="number" min="0" step="0.01" inputmode="decimal">
+              </label>
+              <label class="field">
+                <span>Extravasation area <small>cm²</small></span>
+                <input id="surface-area" type="number" min="0.01" step="0.1" inputmode="decimal">
+              </label>
+              <label class="field">
+                <span>Height <small>cm</small></span>
+                <input id="height" type="number" min="1" step="0.1" inputmode="decimal">
+              </label>
+              <label class="field">
+                <span>Weight <small>kg</small></span>
+                <input id="weight" type="number" min="0.1" step="0.1" inputmode="decimal">
+              </label>
+              <label class="field">
+                <span>Age <small>years</small></span>
+                <input id="age" type="number" min="18" max="120" step="1" inputmode="numeric">
+              </label>
+              <label class="field">
+                <span>Serum creatinine <small>mg/dL</small></span>
+                <input id="creatinine" type="number" min="0.01" step="0.01" inputmode="decimal">
+              </label>
+              <label class="check-row span-2">
+                <input id="female-coefficient" type="checkbox">
+                Apply female coefficient in Cockcroft–Gault
+              </label>
+            </div>
+          </details>
+
+          <div id="form-error" class="form-error" role="alert" hidden></div>
+
+          <div class="form-actions">
+            <button id="assess-button" class="primary-button" type="submit" disabled>Assess event</button>
+            <span class="privacy-note">Inputs stay in this browser session and are not stored by the app.</span>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel result-panel" aria-labelledby="result-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-kicker">Output</p>
+            <h2 id="result-title">Protocol summary</h2>
+          </div>
+          <span id="event-id" class="event-id"></span>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <div class="empty-mark" aria-hidden="true">+</div>
+          <h3>Ready for an event assessment</h3>
+          <p>Complete the event fields, then run the assessment. No patient identifier is requested or stored.</p>
+        </div>
+
+        <div id="result-content" class="result-content" hidden>
+          <div id="urgent-banner" class="urgent-banner" hidden></div>
+
+          <div class="metric-grid">
+            <article class="metric">
+              <span>CTCAE v5.0</span>
+              <strong id="ctcae-grade">—</strong>
+              <small id="ctcae-detail"></small>
+            </article>
+            <article class="metric">
+              <span>Classification</span>
+              <strong id="classification">—</strong>
+            </article>
+            <article class="metric">
+              <span>Thermal protocol</span>
+              <strong id="thermal-name">—</strong>
+              <small id="thermal-frequency"></small>
+            </article>
+            <article class="metric">
+              <span>Antidote</span>
+              <strong id="antidote-name">—</strong>
+              <small id="antidote-summary"></small>
+            </article>
+          </div>
+
+          <section class="result-section" aria-labelledby="actions-title">
+            <div class="section-row">
+              <h3 id="actions-title">Immediate actions</h3>
+              <span class="muted">Ordered checklist</span>
+            </div>
+            <ol id="action-list" class="action-list"></ol>
+          </section>
+
+          <details class="result-details">
+            <summary>Thermal rationale and warnings</summary>
+            <p id="thermal-rationale"></p>
+            <p id="thermal-warning" class="warning-copy"></p>
+          </details>
+
+          <details class="result-details">
+            <summary>Antidote administration</summary>
+            <ul id="antidote-instructions" class="plain-list"></ul>
+            <ul id="antidote-warnings" class="plain-list warning-list"></ul>
+          </details>
+
+          <details class="result-details">
+            <summary>Monitoring and documentation</summary>
+            <h4>Follow-up</h4>
+            <ul id="monitoring-list" class="plain-list"></ul>
+            <h4>Documentation</h4>
+            <ul id="documentation-list" class="plain-list"></ul>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Runs locally in the browser with Python/WebAssembly. No server-side clinical processing is used.
+    </footer>
+  </div>
+</body>
+</html>
