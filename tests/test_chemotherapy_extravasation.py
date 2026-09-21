@@ -248,6 +248,8 @@ class TestFullEngineOrchestration(unittest.TestCase):
         )
         self.assertEqual(dossier.thermal_protocol["protocol"], "DRY WARM COMPRESS")
         self.assertEqual(dossier.antidote_protocol["antidote_name"], "Hyaluronidase")
+        actions = [step["action"] for step in dossier.ordered_action_checklist]
+        self.assertIn("REMOVE PERIPHERAL CANNULA AFTER ASPIRATION", actions)
 
     def test_cisplatin_threshold_requires_both_volume_and_concentration(self):
         indicated = self.engine.evaluate_extravasation_event(
@@ -274,6 +276,14 @@ class TestFullEngineOrchestration(unittest.TestCase):
             drug_concentration_mg_ml=0.6,
         )
         self.assertFalse(low_volume.antidote_protocol["is_indicated"])
+        self.assertIn(
+            "VERIFY ANTIDOTE INDICATION",
+            [step["action"] for step in low_volume.ordered_action_checklist],
+        )
+        self.assertNotIn(
+            "INITIATE INDICATED ANTIDOTE PATHWAY",
+            [step["action"] for step in low_volume.ordered_action_checklist],
+        )
 
         low_concentration = self.engine.evaluate_extravasation_event(
             drug_name="cisplatin",
@@ -286,6 +296,18 @@ class TestFullEngineOrchestration(unittest.TestCase):
             low_concentration.vesicant_class, VesicantClass.IRRITANT.value
         )
         self.assertFalse(low_concentration.antidote_protocol["is_indicated"])
+
+    def test_central_access_is_not_automatically_removed(self):
+        dossier = self.engine.evaluate_extravasation_event(
+            drug_name="fluorouracil",
+            catheter_type=CatheterType.IMPLANTED_PORT.value,
+            estimated_volume_ml=2.0,
+            time_elapsed_hours=0.5,
+            pain_score_0_to_10=2,
+        )
+        actions = [step["action"] for step in dossier.ordered_action_checklist]
+        self.assertIn("DO NOT REMOVE CENTRAL ACCESS DEVICE AUTOMATICALLY", actions)
+        self.assertNotIn("REMOVE PERIPHERAL CANNULA AFTER ASPIRATION", actions)
 
     def test_batch_does_not_invent_patient_measurements(self):
         with tempfile.TemporaryDirectory() as tmpdir:
