@@ -108,9 +108,13 @@ def cmd_assess(args):
         serum_creatinine_mg_dl=args.creatinine,
         is_female=args.female,
         pain_score_0_to_10=args.pain,
+        erythema_present=args.erythema,
+        edema_present=args.edema,
         blistering_present=args.blistering,
         ulceration_or_necrosis_present=args.ulceration,
+        tissue_sloughing_or_eschar=args.sloughing,
         compartment_syndrome_signs=args.compartment,
+        loss_of_extremity_function=args.loss_of_function,
         patient_id=args.patient_id or "PATIENT-001",
     )
 
@@ -333,6 +337,8 @@ def main(argv=None):
     p_assess.add_argument("--concentration", type=float, help="Drug concentration in mg/mL (required to determine cisplatin thresholds)")
     p_assess.add_argument("--surface-area", type=float, help="Measured extravasation surface area in cm² (required for DMSO calculation)")
     p_assess.add_argument("--pain", type=int, default=4, help="Patient pain score (0-10)")
+    p_assess.add_argument("--erythema", action=argparse.BooleanOptionalAction, default=True, help="Erythema present (use --no-erythema when absent)")
+    p_assess.add_argument("--edema", action=argparse.BooleanOptionalAction, default=True, help="Edema present (use --no-edema when absent)")
     p_assess.add_argument("--height", type=float, help="Patient height in cm")
     p_assess.add_argument("--weight", type=float, help="Patient weight in kg")
     p_assess.add_argument("--age", type=int, help="Patient age in years")
@@ -340,7 +346,9 @@ def main(argv=None):
     p_assess.add_argument("--female", action="store_true", help="Apply the female coefficient in Cockcroft-Gault")
     p_assess.add_argument("--blistering", action="store_true", help="Blisters present at site")
     p_assess.add_argument("--ulceration", action="store_true", help="Ulceration / necrosis present")
+    p_assess.add_argument("--sloughing", action="store_true", help="Tissue sloughing or eschar present")
     p_assess.add_argument("--compartment", action="store_true", help="Compartment syndrome signs present")
+    p_assess.add_argument("--loss-of-function", action="store_true", help="Loss of extremity function present")
     p_assess.add_argument("--patient-id", help="Clinical patient identifier")
 
     # Antidote
