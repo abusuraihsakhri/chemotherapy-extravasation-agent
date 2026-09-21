@@ -218,7 +218,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
     "paclitaxel": AntineoplasticDrugInfo(
         generic_name="paclitaxel",
         brand_names=["taxol", "abraxane"],
-        vesicant_class=VesicantClass.NON_DNA_BINDING_VESICANT,
+        vesicant_class=VesicantClass.IRRITANT_WITH_VESICANT_POTENTIAL,
         category="Taxane",
         primary_antidote=AntidoteType.HYALURONIDASE,
         secondary_antidote=AntidoteType.NONE,
@@ -230,7 +230,7 @@ DRUG_REGISTRY: Dict[str, AntineoplasticDrugInfo] = {
     "docetaxel": AntineoplasticDrugInfo(
         generic_name="docetaxel",
         brand_names=["taxotere"],
-        vesicant_class=VesicantClass.NON_DNA_BINDING_VESICANT,
+        vesicant_class=VesicantClass.IRRITANT_WITH_VESICANT_POTENTIAL,
         category="Taxane",
         primary_antidote=AntidoteType.HYALURONIDASE,
         secondary_antidote=AntidoteType.NONE,
@@ -718,7 +718,7 @@ def assess_extravasation_risk(
     prolonged_infusion_gt_4h: bool = False,
 ) -> ExtravasationRiskAssessment:
     """
-    Multifactorial Extravasation Risk Scoring Model (0 - 100 scale).
+    Legacy heuristic extravasation risk index (0-100). This score is not a validated clinical prediction rule and must not be used to determine treatment or vascular access decisions.
     """
     drug_key = drug_name.strip().lower()
     drug_info = DRUG_REGISTRY.get(drug_key)
@@ -799,10 +799,10 @@ def assess_extravasation_risk(
     # Prevention recommendations
     recs = []
     if tier in ("CRITICAL", "HIGH"):
-        recs.append("MANDATORY: Continuous nursing bedside visualization during vesicant administration.")
-        recs.append("Perform free-flowing blood return check every 2 to 3 mL during bolus injection or every 10 minutes during short infusion.")
+        recs.append("Heuristic flag: review local vesicant-administration monitoring requirements.")
+        recs.append("Heuristic flag: verify patency and blood-return checks according to the institutional protocol.")
         if catheter_pts >= 20.0:
-            recs.append("STRONGLY RECOMMEND: Secure central venous access (PICC or Port) prior to next cycle.")
+            recs.append("Heuristic flag: review whether the planned vascular access is appropriate for the agent and infusion.")
     if drug_info and drug_info.vesicant_class in (VesicantClass.DNA_BINDING_VESICANT, VesicantClass.NON_DNA_BINDING_VESICANT):
         recs.append(f"Pre-stage emergency extravasation kit containing {drug_info.primary_antidote.value.upper()} and appropriate thermal pack at bedside.")
     if has_sensory_neuropathy or is_agitated_or_confused:
@@ -930,6 +930,12 @@ class ChemotherapyExtravasationEngine:
             )
 
         vesicant_class = drug_info.vesicant_class.value
+        if drug_key == "cisplatin" and drug_concentration_mg_ml is not None:
+            vesicant_class = (
+                VesicantClass.DNA_BINDING_VESICANT.value
+                if drug_concentration_mg_ml >= 0.5
+                else VesicantClass.IRRITANT.value
+            )
         thermal_mode = drug_info.thermal_protocol.value
         thermal_rat = drug_info.thermal_rationale
         primary_antidote = drug_info.primary_antidote
@@ -1020,16 +1026,21 @@ class ChemotherapyExtravasationEngine:
         if thermal_mode == ThermalProtocol.DRY_COLD.value:
             thermal_dict = {
                 "protocol": "DRY COLD COMPRESS",
-                "frequency": "Apply for 15 to 20 minutes every 6 hours (4 times daily) for 24 to 48 hours.",
+                "frequency": "Apply for 15 to 20 minutes, 3 to 4 times daily, for at least the first 48 to 72 hours.",
                 "rationale": thermal_rat,
                 "warning": "Ensure compress is DRY (place ice pack in sealed plastic bag wrapped in dry towel). DO NOT APPLY MOIST COLD (prevents tissue maceration). If Dexrazoxane is administered, remove cold compress 15 minutes before and during infusion.",
             }
         elif thermal_mode == ThermalProtocol.DRY_WARM.value:
             thermal_dict = {
                 "protocol": "DRY WARM COMPRESS",
-                "frequency": "Apply for 15 to 20 minutes every 6 hours (4 times daily) for 24 to 48 hours.",
+                "frequency": "Apply for 15 to 20 minutes, 3 to 4 times daily, for at least the first 48 to 72 hours.",
                 "rationale": thermal_rat,
-                "warning": "CRITICAL: Dry warm only. STRICTLY AVOID COLD COMPRESSES (cold enhances Vinca alkaloid-induced tissue ulceration). Use heating pad or warm dry pack wrapped in cloth (temperature <= 40°C / 104°F).",
+                "warning": (
+                    "For vinca alkaloids, avoid cold compresses. "
+                    "For taxanes, warm compress is paired with hyaluronidase in the current ONS/ASCO guideline; "
+                    "if hyaluronidase is not used, use the drug-specific cold-compress pathway. "
+                    "Use a dry warm pack wrapped in cloth and avoid excessive heat."
+                ),
             }
         else:
             thermal_dict = {
@@ -1143,28 +1154,55 @@ class ChemotherapyExtravasationEngine:
 
 def process_batch_csv(input_csv_path: str, output_csv_path: str) -> int:
     """
-    Reads a CSV of extravasation cases, assesses risk and management protocols,
-    and writes out enriched clinical results.
+    Process a CSV of extravasation cases without inventing missing patient measurements.
+
+    Recognized optional columns include concentration_mg_ml, surface_area_cm2,
+    height_cm, weight_kg, age_years, serum_creatinine_mg_dl, and is_female.
     """
     engine = ChemotherapyExtravasationEngine()
     processed_count = 0
 
+    def optional_float(row: Dict[str, str], *names: str) -> Optional[float]:
+        for name in names:
+            raw = row.get(name)
+            if raw is not None and str(raw).strip() != "":
+                return float(raw)
+        return None
+
+    def optional_int(row: Dict[str, str], *names: str) -> Optional[int]:
+        value = optional_float(row, *names)
+        return None if value is None else int(value)
+
+    def optional_bool(row: Dict[str, str], *names: str) -> bool:
+        for name in names:
+            raw = row.get(name)
+            if raw is not None and str(raw).strip() != "":
+                return str(raw).strip().lower() in {"1", "true", "yes", "y", "female", "f"}
+        return False
+
     with open(input_csv_path, mode="r", encoding="utf-8-sig") as infile:
-        reader = csv.DictReader(infile)
-        rows = list(reader)
+        rows = list(csv.DictReader(infile))
 
     if not rows:
         return 0
 
     output_rows = []
-    for row in rows:
-        drug = row.get("drug", row.get("drug_name", "doxorubicin"))
-        catheter = row.get("catheter", row.get("catheter_type", CatheterType.PERIPHERAL_FOREARM.value))
-        vol = float(row.get("volume_ml", row.get("volume", 5.0)))
-        elapsed = float(row.get("elapsed_hours", row.get("time_elapsed_hours", 0.5)))
-        pain = int(row.get("pain_score", 4))
-        ht = float(row.get("height_cm", 170.0))
-        wt = float(row.get("weight_kg", 70.0))
+    for row_number, row in enumerate(rows, start=2):
+        drug = (row.get("drug") or row.get("drug_name") or "").strip()
+        if not drug:
+            raise ValueError(f"Row {row_number}: drug/drug_name is required.")
+
+        catheter = (
+            row.get("catheter")
+            or row.get("catheter_type")
+            or CatheterType.PERIPHERAL_FOREARM.value
+        ).strip()
+        vol = optional_float(row, "volume_ml", "volume")
+        elapsed = optional_float(row, "elapsed_hours", "time_elapsed_hours")
+        pain = optional_int(row, "pain_score")
+        vol = 5.0 if vol is None else vol
+        elapsed = 0.5 if elapsed is None else elapsed
+        pain = 4 if pain is None else pain
 
         risk_eval = assess_extravasation_risk(drug, catheter)
         dossier = engine.evaluate_extravasation_event(
@@ -1172,18 +1210,24 @@ def process_batch_csv(input_csv_path: str, output_csv_path: str) -> int:
             catheter_type=catheter,
             estimated_volume_ml=vol,
             time_elapsed_hours=elapsed,
-            patient_height_cm=ht,
-            patient_weight_kg=wt,
+            drug_concentration_mg_ml=optional_float(row, "concentration_mg_ml", "drug_concentration_mg_ml"),
+            extravasation_surface_area_cm2=optional_float(row, "surface_area_cm2", "extravasation_surface_area_cm2"),
+            patient_height_cm=optional_float(row, "height_cm"),
+            patient_weight_kg=optional_float(row, "weight_kg"),
+            patient_age_years=optional_int(row, "age_years", "age"),
+            serum_creatinine_mg_dl=optional_float(row, "serum_creatinine_mg_dl", "creatinine"),
+            is_female=optional_bool(row, "is_female", "female"),
             pain_score_0_to_10=pain,
         )
 
         out = dict(row)
-        out["composite_risk_score"] = risk_eval.composite_risk_score
-        out["risk_tier"] = risk_eval.risk_tier
+        out["heuristic_risk_score"] = risk_eval.composite_risk_score
+        out["heuristic_risk_tier"] = risk_eval.risk_tier
         out["vesicant_class"] = dossier.vesicant_class
         out["ctcae_grade"] = dossier.ctcae_severity["ctcae_grade"]
         out["thermal_protocol"] = dossier.thermal_protocol["protocol"]
-        out["antidote_indicated"] = dossier.antidote_protocol["antidote_name"] if dossier.antidote_protocol else "None"
+        out["antidote"] = dossier.antidote_protocol["antidote_name"] if dossier.antidote_protocol else "None"
+        out["antidote_indicated"] = dossier.antidote_protocol["is_indicated"] if dossier.antidote_protocol else False
         out["urgent_surgery_required"] = dossier.ctcae_severity["requires_urgent_surgical_review"]
         output_rows.append(out)
         processed_count += 1
@@ -1195,3 +1239,4 @@ def process_batch_csv(input_csv_path: str, output_csv_path: str) -> int:
         writer.writerows(output_rows)
 
     return processed_count
+
