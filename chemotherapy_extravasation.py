@@ -916,9 +916,13 @@ class ChemotherapyExtravasationEngine:
         serum_creatinine_mg_dl: Optional[float] = None,
         is_female: bool = False,
         pain_score_0_to_10: int = 4,
+        erythema_present: bool = True,
+        edema_present: bool = True,
         blistering_present: bool = False,
         ulceration_or_necrosis_present: bool = False,
+        tissue_sloughing_or_eschar: bool = False,
         compartment_syndrome_signs: bool = False,
+        loss_of_extremity_function: bool = False,
         patient_id: str = "PATIENT-ONC-001",
     ) -> ExtravasationEmergencyDossier:
         drug_key = drug_name.strip().lower()
@@ -943,9 +947,13 @@ class ChemotherapyExtravasationEngine:
         # 1. CTCAE Severity
         ctcae = grade_ctcae_severity(
             pain_score_0_to_10=pain_score_0_to_10,
+            erythema_present=erythema_present,
+            edema_present=edema_present,
             blistering_present=blistering_present,
             ulceration_or_necrosis_present=ulceration_or_necrosis_present,
+            tissue_sloughing_or_eschar=tissue_sloughing_or_eschar,
             compartment_syndrome_signs=compartment_syndrome_signs,
+            loss_of_extremity_function=loss_of_extremity_function,
         )
 
         # 2. Antidote Calculation
