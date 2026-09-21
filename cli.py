@@ -63,10 +63,13 @@ def format_dossier_display(dossier):
     if antidote:
         print(f"  SPECIFIC ANTIDOTE:    {antidote['antidote_name']}")
         print(f"  Indication Status:    {'INDICATED' if antidote['is_indicated'] else 'NOT INDICATED'}")
-        print(f"  Therapeutic Window:   Within {antidote['urgency_window_hours']} hours (Elapsed: {antidote['time_elapsed_hours']}h - {'OK' if antidote['is_within_window'] else 'EXPIRED'})")
+        if antidote['urgency_window_hours'] > 0:
+            print(f"  Therapeutic Window:   Within {antidote['urgency_window_hours']} hours (Elapsed: {antidote['time_elapsed_hours']}h - {'OK' if antidote['is_within_window'] else 'OUTSIDE'})")
+        else:
+            print("  Therapeutic Window:   Verify timing in the agent-specific institutional protocol")
         print(f"  Dosing Summary:       {antidote['dose_summary']}")
         if antidote.get('renal_adjustment_applied'):
-            print("  Renal Adjustment:     APPLIED (Dose reduced by 50% for CrCl < 50 mL/min)")
+            print("  Renal Adjustment:     APPLIED (Dose reduced by 50% for CrCl < 40 mL/min)")
         print("\n  Administration Steps:")
         for instr in antidote['administration_instructions']:
             print(f"    - {instr}")
@@ -97,15 +100,21 @@ def cmd_assess(args):
         catheter_type=args.catheter,
         estimated_volume_ml=args.volume,
         time_elapsed_hours=args.elapsed,
+        drug_concentration_mg_ml=args.concentration,
+        extravasation_surface_area_cm2=args.surface_area,
         patient_height_cm=args.height,
         patient_weight_kg=args.weight,
         patient_age_years=args.age,
         serum_creatinine_mg_dl=args.creatinine,
         is_female=args.female,
         pain_score_0_to_10=args.pain,
+        erythema_present=args.erythema,
+        edema_present=args.edema,
         blistering_present=args.blistering,
         ulceration_or_necrosis_present=args.ulceration,
+        tissue_sloughing_or_eschar=args.sloughing,
         compartment_syndrome_signs=args.compartment,
+        loss_of_extremity_function=args.loss_of_function,
         patient_id=args.patient_id or "PATIENT-001",
     )
 
@@ -122,10 +131,10 @@ def cmd_antidote(args):
     
     if antidote_type in ("dexrazoxane", "totect", "savene"):
         bsa = args.bsa
-        if not bsa and args.height and args.weight:
+        if bsa is None and args.height is not None and args.weight is not None:
             bsa = calculate_bsa_mosteller(args.height, args.weight)
-        elif not bsa:
-            bsa = 1.73
+        elif bsa is None:
+            raise ValueError("Dexrazoxane dosing requires --bsa or both --height and --weight.")
 
         crcl = args.crcl
         if crcl is None and args.age and args.weight and args.creatinine:
@@ -140,7 +149,9 @@ def cmd_antidote(args):
         plan = calc.calculate_sodium_thiosulfate(estimated_volume_ml=args.volume or 5.0, time_elapsed_hours=args.elapsed or 0.0)
 
     elif antidote_type in ("dmso", "dimethyl_sulfoxide"):
-        plan = calc.calculate_dmso(surface_area_cm2=args.surface_area or 25.0, time_elapsed_hours=args.elapsed or 0.0)
+        if args.surface_area is None:
+            raise ValueError("DMSO calculation requires --surface-area in cm².")
+        plan = calc.calculate_dmso(surface_area_cm2=args.surface_area, time_elapsed_hours=args.elapsed or 0.0)
 
     else:
         print(f"Error: Unknown antidote type '{args.type}'. Supported: dexrazoxane, hyaluronidase, sodium_thiosulfate, dmso", file=sys.stderr)
@@ -184,13 +195,14 @@ def cmd_risk(args):
         print(json.dumps(asdict(result), indent=2, default=str))
     else:
         print("=" * 70)
-        print("  EXTRAVASATION RISK ASSESSMENT")
+        print("  UNVALIDATED EXTRAVASATION RISK HEURISTIC")
         print("=" * 70)
         print(f"  Drug Name:            {result.drug_name.upper()} ({result.vesicant_class})")
         print(f"  Catheter Type:        {result.catheter_type}")
         print(f"  Composite Risk Score: {result.composite_risk_score} / 100")
-        print(f"  Risk Tier:            [{result.risk_tier}]")
-        print("\n  Risk Score Breakdown:")
+        print(f"  Heuristic Tier:       [{result.risk_tier}]")
+        print("  NOTE: This is not a validated clinical prediction rule and must not determine treatment or vascular access.")
+        print("\n  Heuristic Breakdown:")
         for k, v in result.score_breakdown.items():
             print(f"    - {k.replace('_', ' ').title()}: {v} pts")
         if result.clinical_flags:
@@ -273,11 +285,17 @@ def cmd_interactive(args):
     pain_str = input("Patient pain score (0-10, default 5): ").strip() or "5"
     pain = int(pain_str)
 
-    wt_str = input("Patient weight in kg (default 70): ").strip() or "70"
-    wt = float(wt_str)
+    wt_str = input("Patient weight in kg (optional): ").strip()
+    wt = float(wt_str) if wt_str else None
 
-    ht_str = input("Patient height in cm (default 170): ").strip() or "170"
-    ht = float(ht_str)
+    ht_str = input("Patient height in cm (optional): ").strip()
+    ht = float(ht_str) if ht_str else None
+
+    concentration_str = input("Drug concentration in mg/mL if relevant (optional): ").strip()
+    concentration = float(concentration_str) if concentration_str else None
+
+    area_str = input("Measured extravasation area in cm² if relevant (optional): ").strip()
+    surface_area = float(area_str) if area_str else None
 
     blister = input("Are blisters present? (y/n, default n): ").strip().lower().startswith("y")
     ulcer = input("Is skin ulceration/necrosis present? (y/n, default n): ").strip().lower().startswith("y")
@@ -288,6 +306,8 @@ def cmd_interactive(args):
         catheter_type=catheter_val,
         estimated_volume_ml=vol,
         time_elapsed_hours=elapsed,
+        drug_concentration_mg_ml=concentration,
+        extravasation_surface_area_cm2=surface_area,
         patient_height_cm=ht,
         patient_weight_kg=wt,
         pain_score_0_to_10=pain,
@@ -301,8 +321,8 @@ def cmd_interactive(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        prog="chemotherapy-extravasation-agent",
-        description="Chemotherapy Extravasation Clinical Decision Support Engine (ASCO/ONS/ESMO Guidelines)",
+        prog="chemotherapy-extravasation",
+        description="Reference tool for antineoplastic extravasation management using current ONS/ASCO guidance and CTCAE v5.0 mapping.",
     )
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
 
@@ -310,23 +330,31 @@ def main(argv=None):
 
     # Assess
     p_assess = subparsers.add_parser("assess", help="Comprehensive extravasation event assessment & protocol generation")
+    p_assess.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_assess.add_argument("--drug", required=True, help="Antineoplastic agent generic name")
     p_assess.add_argument("--catheter", default="peripheral_forearm", help="Catheter / access device type")
     p_assess.add_argument("--volume", type=float, default=5.0, help="Estimated volume extravasated in mL")
     p_assess.add_argument("--elapsed", type=float, default=0.5, help="Time elapsed since event in hours")
+    p_assess.add_argument("--concentration", type=float, help="Drug concentration in mg/mL (required to determine cisplatin thresholds)")
+    p_assess.add_argument("--surface-area", type=float, help="Measured extravasation surface area in cm² (required for DMSO calculation)")
     p_assess.add_argument("--pain", type=int, default=4, help="Patient pain score (0-10)")
+    p_assess.add_argument("--erythema", action=argparse.BooleanOptionalAction, default=True, help="Erythema present (use --no-erythema when absent)")
+    p_assess.add_argument("--edema", action=argparse.BooleanOptionalAction, default=True, help="Edema present (use --no-edema when absent)")
     p_assess.add_argument("--height", type=float, help="Patient height in cm")
     p_assess.add_argument("--weight", type=float, help="Patient weight in kg")
     p_assess.add_argument("--age", type=int, help="Patient age in years")
     p_assess.add_argument("--creatinine", type=float, help="Serum creatinine in mg/dL")
-    p_assess.add_argument("--female", action="store_true", help="Set if patient is female (for CrCl calculation)")
+    p_assess.add_argument("--female", action="store_true", help="Apply the female coefficient in Cockcroft-Gault")
     p_assess.add_argument("--blistering", action="store_true", help="Blisters present at site")
     p_assess.add_argument("--ulceration", action="store_true", help="Ulceration / necrosis present")
+    p_assess.add_argument("--sloughing", action="store_true", help="Tissue sloughing or eschar present")
     p_assess.add_argument("--compartment", action="store_true", help="Compartment syndrome signs present")
+    p_assess.add_argument("--loss-of-function", action="store_true", help="Loss of extremity function present")
     p_assess.add_argument("--patient-id", help="Clinical patient identifier")
 
     # Antidote
     p_antidote = subparsers.add_parser("antidote", help="Calculate specific antidote dosing regimen")
+    p_antidote.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_antidote.add_argument("--type", required=True, choices=["dexrazoxane", "hyaluronidase", "sodium_thiosulfate", "dmso"], help="Antidote type")
     p_antidote.add_argument("--bsa", type=float, help="Body surface area in m² (for dexrazoxane)")
     p_antidote.add_argument("--crcl", type=float, help="Creatinine clearance in mL/min")
@@ -336,11 +364,12 @@ def main(argv=None):
     p_antidote.add_argument("--weight", type=float, help="Weight in kg")
     p_antidote.add_argument("--age", type=int, help="Age in years")
     p_antidote.add_argument("--creatinine", type=float, help="Serum creatinine in mg/dL")
-    p_antidote.add_argument("--female", action="store_true", help="Female gender")
-    p_antidote.add_argument("--surface-area", type=float, default=25.0, help="Surface area in cm² (for DMSO)")
+    p_antidote.add_argument("--female", action="store_true", help="Apply the female coefficient in Cockcroft-Gault")
+    p_antidote.add_argument("--surface-area", type=float, help="Measured extravasation surface area in cm² (required for DMSO)")
 
     # Risk
-    p_risk = subparsers.add_parser("risk", help="Pre-infusion extravasation risk scoring")
+    p_risk = subparsers.add_parser("risk", help="Legacy unvalidated pre-infusion risk heuristic")
+    p_risk.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_risk.add_argument("--drug", required=True, help="Chemotherapy drug name")
     p_risk.add_argument("--catheter", default="peripheral_forearm", help="Catheter type")
     p_risk.add_argument("--multiple-attempts", action="store_true", help="Multiple venipuncture attempts made")
@@ -354,9 +383,10 @@ def main(argv=None):
 
     # Stage
     p_stage = subparsers.add_parser("stage", help="Grade CTCAE v5.0 severity")
+    p_stage.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output this result in JSON format")
     p_stage.add_argument("--pain", type=int, default=3, help="Pain score (0-10)")
-    p_stage.add_argument("--erythema", action="store_true", default=True, help="Erythema present")
-    p_stage.add_argument("--edema", action="store_true", default=True, help="Edema present")
+    p_stage.add_argument("--erythema", action=argparse.BooleanOptionalAction, default=True, help="Erythema present (use --no-erythema when absent)")
+    p_stage.add_argument("--edema", action=argparse.BooleanOptionalAction, default=True, help="Edema present (use --no-edema when absent)")
     p_stage.add_argument("--blistering", action="store_true", help="Blistering present")
     p_stage.add_argument("--blister-size", type=float, default=0.0, help="Blister diameter in cm")
     p_stage.add_argument("--ulceration", action="store_true", help="Ulceration or necrosis present")
@@ -374,21 +404,24 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    if args.command == "assess":
-        return cmd_assess(args)
-    elif args.command == "antidote":
-        return cmd_antidote(args)
-    elif args.command == "risk":
-        return cmd_risk(args)
-    elif args.command == "stage":
-        return cmd_stage(args)
-    elif args.command == "batch":
-        return cmd_batch(args)
-    elif args.command == "interactive":
-        return cmd_interactive(args)
-    else:
+    try:
+        if args.command == "assess":
+            return cmd_assess(args)
+        if args.command == "antidote":
+            return cmd_antidote(args)
+        if args.command == "risk":
+            return cmd_risk(args)
+        if args.command == "stage":
+            return cmd_stage(args)
+        if args.command == "batch":
+            return cmd_batch(args)
+        if args.command == "interactive":
+            return cmd_interactive(args)
         parser.print_help()
         return 0
+    except (ValueError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
