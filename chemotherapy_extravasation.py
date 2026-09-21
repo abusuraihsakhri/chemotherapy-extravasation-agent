@@ -496,40 +496,40 @@ class AntidoteCalculator:
                 "timing": "Immediately (within 6 hours of extravasation)",
                 "dose_mg": d1_dose,
                 "dose_per_m2": d1_rate,
-                "infusion_duration_minutes": 60,
-                "diluent": "500 mL 0.9% Sodium Chloride or D5W",
+                "infusion_duration_minutes": "60-120",
+                "diluent": "Prepare and dilute according to the specific dexrazoxane product label and institutional pharmacy protocol",
             },
             {
                 "day": 2,
                 "timing": "24 hours (±3 hours) after Day 1 dose",
                 "dose_mg": d2_dose,
                 "dose_per_m2": d2_rate,
-                "infusion_duration_minutes": 60,
-                "diluent": "500 mL 0.9% Sodium Chloride or D5W",
+                "infusion_duration_minutes": "60-120",
+                "diluent": "Prepare and dilute according to the specific dexrazoxane product label and institutional pharmacy protocol",
             },
             {
                 "day": 3,
                 "timing": "48 hours (±3 hours) after Day 1 dose",
                 "dose_mg": d3_dose,
                 "dose_per_m2": d3_rate,
-                "infusion_duration_minutes": 60,
-                "diluent": "500 mL 0.9% Sodium Chloride or D5W",
+                "infusion_duration_minutes": "60-120",
+                "diluent": "Prepare and dilute according to the specific dexrazoxane product label and institutional pharmacy protocol",
             },
         ]
 
         instructions = [
             "Initiate Day 1 infusion as soon as possible and NO LATER than 6 hours post-extravasation.",
             "Infuse intravenously over 1 to 2 hours in a DIFFERENT extremity/vein from the extravasation site.",
-            "Do NOT use inline filters during infusion.",
-            "Remove cold compresses at least 15 minutes before and during Dexrazoxane infusion to ensure adequate vascular delivery.",
-            "Monitor complete blood count (CBC) and liver function tests (LFTs) due to potential transient myelosuppression and transaminitis.",
+            "Prepare and dilute the selected dexrazoxane product according to its current labeling and institutional pharmacy procedure; formulations and diluents are not interchangeable.",
+            "Remove cold compresses at least 15 minutes before and during dexrazoxane infusion.",
+            "Perform laboratory monitoring required by the product label and institutional protocol.",
         ]
 
         warnings = []
         if renal_adj:
             warnings.append(f"Renal impairment detected (CrCl {crcl_ml_min:.1f} mL/min < 40 mL/min): Dexrazoxane doses reduced by 50%.")
         if time_elapsed_hours > 6.0:
-            warnings.append(f"CRITICAL WARNING: Time elapsed ({time_elapsed_hours:.1f}h) exceeds the validated 6-hour therapeutic window. Efficacy may be significantly degraded.")
+            warnings.append(f"Time elapsed ({time_elapsed_hours:.1f} h) is outside the recommended 6-hour initiation window; obtain urgent oncology/pharmacy guidance.")
 
         return AntidotePlan(
             antidote_name="Dexrazoxane (Totect / Savene)",
@@ -679,9 +679,9 @@ class AntidoteCalculator:
         return AntidotePlan(
             antidote_name="Dimethyl Sulfoxide (DMSO topical)",
             is_indicated=True,
-            urgency_window_hours=0.5,
+            urgency_window_hours=round(25.0 / 60.0, 2),
             time_elapsed_hours=time_elapsed_hours,
-            is_within_window=time_elapsed_hours <= 0.5,
+            is_within_window=time_elapsed_hours <= (25.0 / 60.0),
             dose_summary="DMSO 50%-99% topically to twice the affected area every 8 hours for 7 days",
             schedule=schedule,
             administration_instructions=instructions,
@@ -923,7 +923,7 @@ class ChemotherapyExtravasationEngine:
         tissue_sloughing_or_eschar: bool = False,
         compartment_syndrome_signs: bool = False,
         loss_of_extremity_function: bool = False,
-        patient_id: str = "PATIENT-ONC-001",
+        patient_id: str = "UNSPECIFIED",
     ) -> ExtravasationEmergencyDossier:
         drug_key = drug_name.strip().lower()
         drug_info = DRUG_REGISTRY.get(drug_key)
@@ -1017,9 +1017,9 @@ class ChemotherapyExtravasationEngine:
                 antidote_plan = AntidotePlan(
                     antidote_name="Dimethyl Sulfoxide (DMSO topical)",
                     is_indicated=True,
-                    urgency_window_hours=0.5,
+                    urgency_window_hours=round(25.0 / 60.0, 2),
                     time_elapsed_hours=time_elapsed_hours,
-                    is_within_window=time_elapsed_hours <= 0.5,
+                    is_within_window=time_elapsed_hours <= (25.0 / 60.0),
                     dose_summary="DMSO is indicated; measure the extravasation surface area before calculating the application area.",
                     schedule=[],
                     administration_instructions=["Apply to dry skin over approximately twice the measured extravasation area; verify local formulation and protocol."],
@@ -1029,6 +1029,17 @@ class ChemotherapyExtravasationEngine:
                 antidote_plan = self.antidote_calc.calculate_dmso(
                     extravasation_surface_area_cm2, time_elapsed_hours
                 )
+
+        if (
+            drug_key in {"paclitaxel", "docetaxel"}
+            and antidote_plan is not None
+            and not antidote_plan.is_within_window
+        ):
+            thermal_mode = ThermalProtocol.DRY_COLD.value
+            thermal_rat = (
+                "Current ONS/ASCO guidance pairs warm compresses with hyaluronidase for taxanes; "
+                "when hyaluronidase is not administered, use the cold-compress pathway."
+            )
 
         # 3. Thermal Protocol Instructions
         if thermal_mode == ThermalProtocol.DRY_COLD.value:
@@ -1059,73 +1070,103 @@ class ChemotherapyExtravasationEngine:
             }
 
         # 4. Ordered Step-by-Step Action Checklist
+        central_access = catheter_type in {
+            CatheterType.PICC.value,
+            CatheterType.TUNNELED_CVC.value,
+            CatheterType.IMPLANTED_PORT.value,
+        }
+
+        if central_access:
+            device_action = {
+                "priority": "URGENT",
+                "action": "DO NOT REMOVE CENTRAL ACCESS DEVICE AUTOMATICALLY",
+                "details": "After aspiration, keep the central access device in place unless the treating team determines removal is required. Escalate promptly for oncology/vascular-access review and assess catheter position or device integrity as indicated.",
+            }
+        else:
+            device_action = {
+                "priority": "HIGH",
+                "action": "REMOVE PERIPHERAL CANNULA AFTER ASPIRATION",
+                "details": "After aspiration and any agent-specific local antidote step that requires access, gently remove the peripheral cannula and apply light pressure. Do not massage the site.",
+            }
+
+        if antidote_plan is None:
+            antidote_action = {
+                "priority": "HIGH",
+                "action": "FOLLOW AGENT-SPECIFIC SUPPORTIVE MANAGEMENT",
+                "details": "No specific antidote is generated for this agent; follow the thermal pathway and the institutional extravasation protocol.",
+            }
+        elif antidote_plan.is_indicated:
+            antidote_action = {
+                "priority": "HIGH",
+                "action": "INITIATE INDICATED ANTIDOTE PATHWAY",
+                "details": antidote_plan.dose_summary,
+            }
+        else:
+            antidote_action = {
+                "priority": "HIGH",
+                "action": "VERIFY ANTIDOTE INDICATION",
+                "details": antidote_plan.dose_summary,
+            }
+
         actions = [
             {
                 "step_number": 1,
-                "priority": "IMMEDIATE (STAT)",
-                "action": "STOP INFUSION IMMEDIATELY",
-                "details": "Immediately halt the antineoplastic infusion upon first suspicion or report of pain, burning, swelling, or loss of blood return.",
+                "priority": "IMMEDIATE",
+                "action": "STOP THE INFUSION",
+                "details": "Stop the antineoplastic infusion when extravasation is suspected.",
             },
             {
                 "step_number": 2,
-                "priority": "IMMEDIATE (STAT)",
-                "action": "LEAVE CATHETER IN SITU; DO NOT FLUSH",
-                "details": "Disconnect IV administration set from catheter hub. DO NOT FLUSH the catheter with saline or heparin under any circumstances.",
+                "priority": "IMMEDIATE",
+                "action": "LEAVE THE VASCULAR ACCESS DEVICE IN PLACE; DO NOT FLUSH",
+                "details": "Disconnect the administration tubing while initially leaving the access device in situ. Do not flush the line.",
             },
             {
                 "step_number": 3,
-                "priority": "IMMEDIATE (STAT)",
-                "action": "ASPIRATE EXTRAVASATED DRUG & BLOOD",
-                "details": "Attach a sterile 3 mL or 5 mL syringe to the catheter hub and gently aspirate 3 to 5 mL of blood and extravasated fluid.",
-            },
-        ]
-
-        actions.extend([
-            {
-                "step_number": len(actions) + 1,
-                "priority": "HIGH",
-                "action": "REMOVE CATHETER & APPLY GENTLE PRESSURE",
-                "details": "Gently withdraw the catheter. Apply light pressure with sterile gauze. Do NOT apply heavy friction or massage.",
+                "priority": "IMMEDIATE",
+                "action": "ASPIRATE RESIDUAL DRUG",
+                "details": "Using the existing access device, gently aspirate as much residual drug and fluid as possible according to the institutional procedure.",
             },
             {
-                "step_number": len(actions) + 2,
-                "priority": "HIGH",
-                "action": "MARK EXTRAVASATION MARGINS",
-                "details": "Outline the full visible area of erythema, induration, and edema with an indelible surgical skin marker for serial measurement.",
+                "step_number": 4,
+                **device_action,
             },
             {
-                "step_number": len(actions) + 3,
+                "step_number": 5,
                 "priority": "HIGH",
-                "action": "INITIATE SPECIFIC ANTIDOTE PROTOCOL",
-                "details": antidote_plan.dose_summary if antidote_plan else "No specific chemical antidote indicated; proceed with thermal management and symptomatic therapy.",
+                "action": "MARK AND DOCUMENT THE AFFECTED AREA",
+                "details": "Mark the visible margins and document the site, symptoms, dimensions, and baseline appearance; obtain photographs according to local policy.",
             },
             {
-                "step_number": len(actions) + 4,
+                "step_number": 6,
+                **antidote_action,
+            },
+            {
+                "step_number": 7,
                 "priority": "HIGH",
-                "action": "APPLY THERMAL INTERVENTION",
+                "action": "APPLY THE AGENT-SPECIFIC THERMAL INTERVENTION",
                 "details": f"{thermal_dict['protocol']}: {thermal_dict['frequency']}",
             },
             {
-                "step_number": len(actions) + 5,
+                "step_number": 8,
                 "priority": "ROUTINE",
-                "action": "ELEVATE AFFECTED EXTREMITY",
-                "details": "Elevate the affected arm/limb above heart level for 48 hours to promote lymphatic drainage and minimize localized edema.",
+                "action": "POSITION THE LIMB FOR COMFORT",
+                "details": "Elevate the affected limb if this improves comfort; otherwise encourage normal limb use as tolerated and follow the local protocol.",
             },
             {
-                "step_number": len(actions) + 6,
+                "step_number": 9,
                 "priority": "URGENT" if ctcae["requires_urgent_surgical_review"] else "ROUTINE",
-                "action": "SURGICAL CONSULTATION STATUS",
+                "action": "SPECIALIST / SURGICAL REVIEW",
                 "details": ctcae["surgical_consultation_status"],
             },
-        ])
+        ]
 
         # 5. Monitoring & Follow-up Schedule
         monitoring = [
-            "Assess and document pain level (NRS 0-10), erythema diameter (cm), and edema every 15 minutes for the first 2 hours post-event.",
-            "Inspect site every 4 hours for the subsequent 24 hours.",
-            "Daily clinical examination and photographic documentation for Days 1 through 7.",
-            "Outpatient clinical review at Day 14 and Day 28 post-extravasation.",
-            "Instruct patient on red-flag signs (increasing pain, skin ulceration, numbness, paresthesias, fever > 38.0°C) requiring emergency presentation.",
+            "Perform serial clinical assessment of pain, erythema, edema, induration, blistering, skin integrity, sensation, and limb function according to the institutional extravasation protocol.",
+            "Record measurements and photographs at baseline and follow-up when permitted by local policy, using a measurement scale where appropriate.",
+            "Continue follow-up until symptoms and tissue injury have resolved or specialist care has assumed management.",
+            "Provide clear return precautions for worsening pain, progressive swelling, blistering or ulceration, sensory or motor change, fever, or other concerning deterioration.",
         ]
 
         # 6. Documentation Requirements
